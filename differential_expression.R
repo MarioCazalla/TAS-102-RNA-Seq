@@ -1,7 +1,14 @@
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.13")
+
+BiocManager::install(c("DESeq2", "ggplot2"))
 library(data.table)
 library(DESeq2)
 library(ggplot2)
-setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Sequencing/alignment/")
+library(dplyr)
+setwd("/media/mario/My Passport/IRBLLEIDA/RNA-S")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/")
 
 
 Rmatrix <- as.matrix(read.csv("Rmatrix.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
@@ -13,31 +20,44 @@ dds <- DESeqDataSetFromMatrix(countData = Rmatrix,
                               colData = metaData,
                               design = ~dex, tidy = FALSE)
 #Con esto nos quedamos con los genes que tienen mas de 10 counts. Disminuimos matriz
-keep <- rowSums(counts(dds)) >= 10
+keep <- rowSums(counts(dds)) >= 1
 dds <- dds[keep,]
 
 dds <- DESeq(dds)
 res <- results(dds)
 head(results(dds, tidy=TRUE))
 
+#install.packages("countToFPKM")
+
 res <- res[order(res$padj), ]
 head(res)
-
-
-
-plotCounts(dds, gene = "CSNK1D", intgroup = "dex")
-plotCounts(dds, gene = "LOC101929185", intgroup = "dex")
-plotCounts(dds, gene = "GRIP2", intgroup = "dex")
-plotCounts(dds, gene = "HOXB-AS3", intgroup = "dex")
-plotCounts(dds, gene = "TRNS1", intgroup = "dex")
-plotCounts(dds, gene = "GMPS", intgroup = "dex")
-
 
 sum(res$pvalue < 0.05, na.rm = TRUE)
 sum(!is.na(res$pvalue))
 sum(res$padj < 0.1, na.rm = TRUE)
 resSig <- subset(res, padj < 0.1)
 head(resSig[order(resSig$log2FoldChange, decreasing = TRUE), ])
+
+log2FC_UP <- subset(resSig, resSig$log2FoldChange > 1)
+log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < -1)
+
+resSig_names <- resSig@rownames
+library(ggbeeswarm)
+geneCounts <- plotCounts(dds, gene = "CSNK1D", intgroup = c("dex", "celltype"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+
+geneCounts <- plotCounts(dds, gene = "LOC101929185", intgroup = c("dex", "celltype"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+
+geneCounts <- plotCounts(dds, gene = "GRIP2", intgroup = c("dex", "celltype"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+
+geneCounts <- plotCounts(dds, gene = "HOXB-AS3", intgroup = c("dex", "celltype"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+
+geneCounts <- plotCounts(dds, gene = "GMPS", intgroup = c("dex", "celltype"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+
 
 #plotCounts
 topGene <- rownames(res)[which.min(res$padj)]
@@ -53,11 +73,10 @@ ggplot(geneCounts, aes(x = dex, y = count, color = celltype, group = celltype)) 
 #reset par
 par(mfrow=c(1,1))
 # Make a basic volcano plot
-with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
-
+with(resSig, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
 # Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
-with(subset(res, padj<0.05 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
-with(subset(res, padj<0.01 & abs(log2FoldChange)>0.5), points(log2FoldChange, -log10(pvalue), pch=20, col = "red"))
+with(subset(resSig, padj<0.05 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(resSig, padj<0.01 & abs(log2FoldChange)>1), points(log2FoldChange, -log10(pvalue), pch=20, col = "red"))
 
 vsdata <- vst(dds, blind=FALSE)
 plotPCA(vsdata, intgroup="dex") #using the DESEQ2 plotPCA fxn we can
