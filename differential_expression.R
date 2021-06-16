@@ -35,13 +35,25 @@ head(res)
 sum(res$pvalue < 0.05, na.rm = TRUE)
 sum(!is.na(res$pvalue))
 sum(res$padj < 0.1, na.rm = TRUE)
+#After multiple testing 
 resSig <- subset(res, padj < 0.1)
+#Before multiple testing
+resSIG <- subset(res, pvalue < 0.05)
 head(resSig[order(resSig$log2FoldChange, decreasing = TRUE), ])
-
-log2FC_UP <- subset(resSig, resSig$log2FoldChange > 1)
-log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < -1)
+#ADJUSTED P-VALUE
+log2FC_UP <- subset(resSig, resSig$log2FoldChange > 1) #3
+log2FC_UP@rownames
+log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < -1) #3
+log2FC_DOWN@rownames
+#P-VALUE
+log2FC_UP_pv <- subset(resSIG, resSIG$log2FoldChange > 1) #41
+log2FC_UP_pv@rownames
+log2FC_DOWN_pv <- subset(resSIG, resSIG$log2FoldChange < -1) #24
+log2FC_DOWN_pv@rownames
 
 resSig_names <- resSig@rownames
+resSIG_names <- resSIG@rownames
+
 library(ggbeeswarm)
 geneCounts <- plotCounts(dds, gene = "CSNK1D", intgroup = c("dex", "celltype"), returnData = TRUE)
 ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
