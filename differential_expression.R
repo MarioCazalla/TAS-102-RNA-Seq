@@ -14,17 +14,23 @@ library(clusterProfiler)
 library(ggbeeswarm)
 library(volcano3D)
 
-setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Se")
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/")
+#Linux
+setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4")
+#Windows
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LS513/")
 
 #Preparamos la matriz de analisis para DESeq2
 
-Rmatrix <- as.matrix(read.csv("Rmatrix.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
-colnames(Rmatrix) <- c("RNA-29", "RNA-30", "RNA-31", "RNA-32")
-dim(Rmatrix)
-metaData <- as.matrix(read.csv("metaData.csv", header = TRUE, sep = "\t"))
+Rmatrix <- as.matrix(read.csv("Rmatrix_LS513.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+#Rmatrix <- as.data.frame(read.csv("Rmatrix_LS513.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+colnames(Rmatrix) <- c("RNA-33", "RNA-34", "RNA-35", "RNA-36")
+metaData <- as.matrix(read.csv("metaData_LS513.csv", header = TRUE, sep = "\t"))
 
-dds <- DESeqDataSetFromMatrix(countData = Rmatrix,
+dim(Rmatrix)
+
+Rmatrix1 <- na.omit(Rmatrix)
+dim(Rmatrix1)
+dds <- DESeqDataSetFromMatrix(countData = Rmatrix1,
                               colData = metaData,
                               design = ~dex, tidy = FALSE)
 #Con esto nos quedamos con los genes que tienen mas de 1 counts. Disminuimos matriz
@@ -33,11 +39,14 @@ dds <- dds[keep,]
 # nrow(dds)
 
 #DESeq2
+
 dds <- DESeq(dds)
 res <- results(dds)
-
-#Observamos los resultados
 head(results(dds, tidy=TRUE))
+
+#rm(keep, metaData, Rmatrix, dds)
+#Observamos los resultados
+
 summary(res)
 #Ordenamos por p.adj
 res <- res[order(res$padj), ]
@@ -60,24 +69,26 @@ head(resSig[ order(resSig$log2FoldChange), ])
 head(resSig[ order(resSig$log2FoldChange, decreasing = FALSE), ])
 
 #Before multiple testing: genes with pvalue < 0.05
-resSIG <- subset(res, pvalue < 0.05)
+resSIG <- subset(res, pvalue < 0.06)
 #Vemos los resultados
 head(resSIG[order(resSIG$log2FoldChange, decreasing = TRUE), ])
 
 #Ahora filtraremos por log2FoldChange para ver cuales son UP o DOWN regulated
   #ADJUSTED P-VALUE
-log2FC_UP <- subset(resSig, resSig$log2FoldChange > 0) #3
+log2FC_UP <- subset(resSig, resSig$log2FoldChange > 0) 
 log2FC_UP <- log2FC_UP[order(log2FC_UP$log2FoldChange, decreasing = TRUE), ]
-log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < 0) #3
+log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < 0) 
 log2FC_DOWN <- log2FC_DOWN[order(log2FC_DOWN$log2FoldChange, decreasing = FALSE), ]
 
 resSig_names <- resSig@rownames
 resSig_up_names <- log2FC_UP@rownames
 resSig_down_names <- log2FC_DOWN@rownames
+
+
   #P-VALUE
-log2FC_UP_pv <- subset(resSIG, resSIG$log2FoldChange > 0) #41
+log2FC_UP_pv <- subset(resSIG, resSIG$log2FoldChange > 0) 
 log2FC_UP_pv <- log2FC_UP_pv[order(log2FC_UP_pv$log2FoldChange, decreasing = TRUE), ]
-log2FC_DOWN_pv <- subset(resSIG, resSIG$log2FoldChange < 0) #24
+log2FC_DOWN_pv <- subset(resSIG, resSIG$log2FoldChange < 0) 
 log2FC_DOWN_pv <- log2FC_DOWN_pv[order(log2FC_DOWN_pv$log2FoldChange, decreasing = FALSE), ]
 
 resSIG_names <- resSIG@rownames
@@ -85,7 +96,7 @@ resSIG_UP_names <-log2FC_UP_pv@rownames
 resSIG_DOWN_names <- log2FC_DOWN_pv@rownames
 
 #Guardamos los resultados 
-write.table(resSig_names, file = "diff_expressed_padj__genenames.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(resSig_names, file = "diff_expressed_padj_genenames.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
 write.table(resSig_down_names, file = "down_regulated_padj_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
 write.table(resSig_up_names, file = "up_regulated_padj_names.csv", sep = ",", row.names = FALSE, col.names = FALSE)
 
@@ -95,13 +106,13 @@ write.table(resSIG_UP_names, file = "up_regulated_pval_names.csv", sep = ",", ro
 
 #### KEGG pathways ####
 entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
-                                    keys = resSIG_DOWN_names, #Cambiar key segun analisis
+                                    keys = resSIG_names, #Cambiar key segun analisis
                                     keytype = "SYMBOL",
                                     columns = "ENTREZID")
 
 entrez_ids <- entrez_ids[ , "ENTREZID"] 
 entrez_ids <- entrez_ids[!is.na(entrez_ids)] 
-KEGG_analysis <-enrichKEGG(entrez_ids,
+KEGG_analysis <- enrichKEGG(entrez_ids,
                            organism = "hsa",
                            keyType = "kegg",
                            pvalueCutoff = 0.05,
@@ -122,7 +133,8 @@ KEGG_pathways$p_adjust=KEGG_analysis@result[["p.adjust"]]
 KEGG_pathways$pvalue=KEGG_analysis@result[["pvalue"]]
 KEGG_pathways$GeneRatio=KEGG_analysis@result[["GeneRatio"]]
 
-
+write.table(KEGG_pathways, file = "KEGG_pathways_padj.csv", row.names = FALSE)
+write.table(KEGG_pathways, file = "KEGG_pathways_pval.csv", row.names = FALSE)
 #### GO:BP ####
 
 GO_analysis <- function (genes, ontology){
@@ -139,17 +151,19 @@ GO_analysis <- function (genes, ontology){
 GO_BP <- GO_analysis(resSig_names, "BP")
 
 GO_BP_df <- as.data.frame(GO_BP@result)
-write.table(GO_BP_df, file = "GO_BP.csv", sep = "\t")
-
+write.table(GO_BP_df, file = "GO_BP_padj.csv", sep = "\t")
 
 
 #Creamos los plots en los que vemos las diferencias entre Resistente y parental
 
-geneCounts <- plotCounts(dds, gene = "HOXB-AS3", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+  #Aqui si queremos ver diferentes colores entre lineas celulares, en color ponemos
+    #celltype, si es la misma linea celular, ponemos dex para diferenciar R de Parental
+
+geneCounts <- plotCounts(dds, gene = "PCNP", intgroup = c("dex", "celltype"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = dex)) + scale_y_log10() + geom_beeswarm(cex = 3)
 
 geneCounts <- plotCounts(dds, gene = "LOC101929185", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+ggplot(geneCounts, aes(x = dex, y = count, color = dex)) + scale_y_log10() + geom_beeswarm(cex = 3)
 
 geneCounts <- plotCounts(dds, gene = "GRIP2", intgroup = c("dex", "celltype"), returnData = TRUE)
 ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
