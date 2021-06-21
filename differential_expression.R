@@ -14,7 +14,7 @@ library(clusterProfiler)
 library(ggbeeswarm)
 library(volcano3D)
 
-setwd("/media/mario/My Passport/IRBLLEIDA/RNA-S")
+setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Se")
 setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/")
 
 #Preparamos la matriz de analisis para DESeq2
@@ -50,6 +50,11 @@ head(res)
 
 #After multiple testing: genes with padj < 0.2 
 resSig <- subset(res, padj < 0.2)
+
+#### Calcular el porcentaje de genes que han cambiado tras el tratamiento
+
+????
+
 #Vemos los resultados
 head(resSig[ order(resSig$log2FoldChange), ])
 head(resSig[ order(resSig$log2FoldChange, decreasing = FALSE), ])
@@ -66,6 +71,7 @@ log2FC_UP <- log2FC_UP[order(log2FC_UP$log2FoldChange, decreasing = TRUE), ]
 log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < 0) #3
 log2FC_DOWN <- log2FC_DOWN[order(log2FC_DOWN$log2FoldChange, decreasing = FALSE), ]
 
+resSig_names <- resSig@rownames
 resSig_up_names <- log2FC_UP@rownames
 resSig_down_names <- log2FC_DOWN@rownames
   #P-VALUE
@@ -74,16 +80,20 @@ log2FC_UP_pv <- log2FC_UP_pv[order(log2FC_UP_pv$log2FoldChange, decreasing = TRU
 log2FC_DOWN_pv <- subset(resSIG, resSIG$log2FoldChange < 0) #24
 log2FC_DOWN_pv <- log2FC_DOWN_pv[order(log2FC_DOWN_pv$log2FoldChange, decreasing = FALSE), ]
 
+resSIG_names <- resSIG@rownames
 resSIG_UP_names <-log2FC_UP_pv@rownames
 resSIG_DOWN_names <- log2FC_DOWN_pv@rownames
+
 #Guardamos los resultados 
-write.table(resSig_down_names, file = "down_regulated_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
-write.table(resSig_up_names, file = "up_regulated_names.csv", sep = ",", row.names = FALSE, col.names = FALSE)
+write.table(resSig_names, file = "diff_expressed_padj__genenames.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(resSig_down_names, file = "down_regulated_padj_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(resSig_up_names, file = "up_regulated_padj_names.csv", sep = ",", row.names = FALSE, col.names = FALSE)
 
-write.table(resSIG_DOWN_names, file = "down_regulated_pvalue_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
-write.table(resSIG_UP_names, file = "up_regulated_pvalue_names.csv", sep = ",", row.names = FALSE, col.names = FALSE)
+write.table(resSIG_names, file = "diff_expressed_pval__genenames.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(resSIG_DOWN_names, file = "down_regulated_pval_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(resSIG_UP_names, file = "up_regulated_pval_names.csv", sep = ",", row.names = FALSE, col.names = FALSE)
 
-#Con esto vamos a generar la lista de KEGG pathways
+#### KEGG pathways ####
 entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
                                     keys = resSIG_DOWN_names, #Cambiar key segun analisis
                                     keytype = "SYMBOL",
@@ -113,8 +123,27 @@ KEGG_pathways$pvalue=KEGG_analysis@result[["pvalue"]]
 KEGG_pathways$GeneRatio=KEGG_analysis@result[["GeneRatio"]]
 
 
+#### GO:BP ####
+
+GO_analysis <- function (genes, ontology){
+  clusterProfiler::enrichGO(gene          = genes,
+                            # universe      = universe,
+                            OrgDb         = org.Hs.eg.db,
+                            keyType       = 'SYMBOL',
+                            ont           = ontology, # "BP", "MF", "CC" o "ALL"
+                            pAdjustMethod = "BH",
+                            pvalueCutoff  = 0.05,
+                            qvalueCutoff  = 0.05)
+}
+
+GO_BP <- GO_analysis(resSig_names, "BP")
+
+GO_BP_df <- as.data.frame(GO_BP@result)
+write.table(GO_BP_df, file = "GO_BP.csv", sep = "\t")
+
+
+
 #Creamos los plots en los que vemos las diferencias entre Resistente y parental
-resSIG[order(resSIG$log2FoldChange, decreasing = TRUE), ]
 
 geneCounts <- plotCounts(dds, gene = "HOXB-AS3", intgroup = c("dex", "celltype"), returnData = TRUE)
 ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
@@ -137,17 +166,4 @@ ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() 
 
 ggplot(geneCounts, aes(x = dex, y = count, color = celltype, group = celltype)) + scale_y_log10() + geom_point(size=3) + geom_line()
 
-
-#plotCounts del gen con mayos p.adj
-topGene <- rownames(res)[which.min(res$padj)]
-plotCounts(dds, gene = topGene, intgroup = ("dex"))
-
-
-#reset par
-par(mfrow=c(1,1))
-# Make a basic volcano plot
-with(resSig, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
-# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
-with(subset(resSig, padj<0.05 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
-with(subset(resSig, padj<0.01 & abs(log2FoldChange)>1), points(log2FoldChange, -log10(pvalue), pch=20, col = "red"))
 
