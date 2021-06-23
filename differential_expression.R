@@ -17,14 +17,13 @@ library(volcano3D)
 #Linux
 setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4")
 #Windows
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LS513/")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LIM-2099//")
 
 #Preparamos la matriz de analisis para DESeq2
 
-Rmatrix <- as.matrix(read.csv("Rmatrix_LS513.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
-#Rmatrix <- as.data.frame(read.csv("Rmatrix_LS513.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
-colnames(Rmatrix) <- c("RNA-33", "RNA-34", "RNA-35", "RNA-36")
-metaData <- as.matrix(read.csv("metaData_LS513.csv", header = TRUE, sep = "\t"))
+Rmatrix <- as.matrix(read.csv("Rmatrix_lim2099.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+colnames(Rmatrix) <- c("RNA-25", "RNA-26", "RNA-27", "RNA-28")
+metaData <- as.matrix(read.csv("metaData_lim2099.csv", header = TRUE, sep = "\t"))
 
 dim(Rmatrix)
 
@@ -62,7 +61,7 @@ resSig <- subset(res, padj < 0.2)
 
 #### Calcular el porcentaje de genes que han cambiado tras el tratamiento
 
-????
+
 
 #Vemos los resultados
 head(resSig[ order(resSig$log2FoldChange), ])
@@ -111,6 +110,9 @@ entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
                                     columns = "ENTREZID")
 
 entrez_ids <- entrez_ids[ , "ENTREZID"] 
+#Voy a crear dataframe con los entrezid y los nombres de los genes
+name_entrezid <- entrez_ids
+
 entrez_ids <- entrez_ids[!is.na(entrez_ids)] 
 KEGG_analysis <- enrichKEGG(entrez_ids,
                            organism = "hsa",
@@ -148,10 +150,17 @@ GO_analysis <- function (genes, ontology){
                             qvalueCutoff  = 0.05)
 }
 
-GO_BP <- GO_analysis(resSig_names, "BP")
+GO_BP <- GO_analysis(resSIG_names, "BP")
+GO_MF <- GO_analysis(resSIG_names, "MF")
+GO_CC <- GO_analysis(resSIG_names, "CC")
 
 GO_BP_df <- as.data.frame(GO_BP@result)
+GO_MF_df <- as.data.frame(GO_MF@result)
+GO_CC_df <- as.data.frame(GO_CC@result)
+
 write.table(GO_BP_df, file = "GO_BP_padj.csv", sep = "\t")
+write.table(GO_MF_df, file = "GO_MF_padj.csv", sep = "\t")
+write.table(GO_CC_df, file = "GO_CC_padj.csv", sep = "\t")
 
 
 #Creamos los plots en los que vemos las diferencias entre Resistente y parental
@@ -159,10 +168,10 @@ write.table(GO_BP_df, file = "GO_BP_padj.csv", sep = "\t")
   #Aqui si queremos ver diferentes colores entre lineas celulares, en color ponemos
     #celltype, si es la misma linea celular, ponemos dex para diferenciar R de Parental
 
-geneCounts <- plotCounts(dds, gene = "PCNP", intgroup = c("dex", "celltype"), returnData = TRUE)
+geneCounts <- plotCounts(dds, gene = "MED22", intgroup = c("dex", "celltype"), returnData = TRUE)
 ggplot(geneCounts, aes(x = dex, y = count, color = dex)) + scale_y_log10() + geom_beeswarm(cex = 3)
 
-geneCounts <- plotCounts(dds, gene = "LOC101929185", intgroup = c("dex", "celltype"), returnData = TRUE)
+geneCounts <- plotCounts(dds, gene = "ZACN", intgroup = c("dex", "celltype"), returnData = TRUE)
 ggplot(geneCounts, aes(x = dex, y = count, color = dex)) + scale_y_log10() + geom_beeswarm(cex = 3)
 
 geneCounts <- plotCounts(dds, gene = "GRIP2", intgroup = c("dex", "celltype"), returnData = TRUE)
