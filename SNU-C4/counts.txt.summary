@@ -1,0 +1,15 @@
+Status	alignment_29/RNA-29Aligned.sortedByCoord.out.bam	alignment_30/RNA-30Aligned.sortedByCoord.out.bam	alignment_31/RNA-31Aligned.sortedByCoord.out.bam	alignment_32/RNA-32Aligned.sortedByCoord.out.bam
+Assigned	733600	555388	560408	612125
+Unassigned_Unmapped	0	0	0	0
+Unassigned_Read_Type	0	0	0	0
+Unassigned_Singleton	0	0	0	0
+Unassigned_MappingQuality	0	0	0	0
+Unassigned_Chimera	0	0	0	0
+Unassigned_FragmentLength	0	0	0	0
+Unassigned_Duplicate	0	0	0	0
+Unassigned_MultiMapping	5928863	5570287	5321697	5214632
+Unassigned_Secondary	0	0	0	0
+Unassigned_NonSplit	0	0	0	0
+Unassigned_NoFeatures	20854450	17483446	16389428	17895113
+Unassigned_Overlapping_Length	0	0	0	0
+Unassigned_Ambiguity	20952	21041	14629	20901
