@@ -12,18 +12,21 @@ library(org.Hs.eg.db)
 library(AnnotationDbi)
 library(clusterProfiler)
 library(ggbeeswarm)
-library(volcano3D)
+#library(volcano3D)
 
 #Linux
 setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4")
 #Windows
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LIM-2099//")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4/")
 
 #Preparamos la matriz de analisis para DESeq2
 
-Rmatrix <- as.matrix(read.csv("Rmatrix_lim2099.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
-colnames(Rmatrix) <- c("RNA-25", "RNA-26", "RNA-27", "RNA-28")
-metaData <- as.matrix(read.csv("metaData_lim2099.csv", header = TRUE, sep = "\t"))
+Rmatrix <- as.matrix(read.csv("Rmatrix_SNUC4.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+colnames(Rmatrix) <- c("RNA-25", "RNA-26", "RNA-27", "RNA-28") #LIM2099
+colnames(Rmatrix) <- c("RNA-29", "RNA-30", "RNA-31", "RNA-32") #SNUC4
+colnames(Rmatrix) <- c("RNA-33", "RNA-34", "RNA-35", "RNA-36") #LS513
+
+metaData <- as.matrix(read.csv("metaData_SNUC4.csv", header = TRUE, sep = "\t"))
 
 dim(Rmatrix)
 
@@ -108,6 +111,10 @@ entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
                                     keys = resSIG_names, #Cambiar key segun analisis
                                     keytype = "SYMBOL",
                                     columns = "ENTREZID")
+entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
+                                    keys = resSig_names, #Cambiar key segun analisis
+                                    keytype = "SYMBOL",
+                                    columns = "ENTREZID")
 
 entrez_ids <- entrez_ids[ , "ENTREZID"] 
 #Voy a crear dataframe con los entrezid y los nombres de los genes
@@ -158,9 +165,9 @@ GO_BP_df <- as.data.frame(GO_BP@result)
 GO_MF_df <- as.data.frame(GO_MF@result)
 GO_CC_df <- as.data.frame(GO_CC@result)
 
-write.table(GO_BP_df, file = "GO_BP_padj.csv", sep = "\t")
-write.table(GO_MF_df, file = "GO_MF_padj.csv", sep = "\t")
-write.table(GO_CC_df, file = "GO_CC_padj.csv", sep = "\t")
+write.table(GO_BP_df, file = "GO_BP_pval.csv", sep = "\t")
+write.table(GO_MF_df, file = "GO_MF_pval.csv", sep = "\t")
+write.table(GO_CC_df, file = "GO_CC_pval.csv", sep = "\t")
 
 
 #Creamos los plots en los que vemos las diferencias entre Resistente y parental
