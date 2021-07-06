@@ -2,7 +2,7 @@
 #   install.packages("BiocManager")
 # BiocManager::install(version = "3.13")
 # 
-# BiocManager::install(c("data.table", "dplyr", "DESeq2", "ggplot2", "org.Hs.eg.db", "AnnotationDbi", "clusterProfiler", "ggbeeswarm", "volcano3D"))
+# BiocManager::install(c("ReactomePA", "data.table", "dplyr", "DESeq2", "ggplot2", "org.Hs.eg.db", "AnnotationDbi", "clusterProfiler", "ggbeeswarm", "volcano3D"))
 #install.packages("countToFPKM")
 library(data.table)
 library(DESeq2)
@@ -12,21 +12,34 @@ library(org.Hs.eg.db)
 library(AnnotationDbi)
 library(clusterProfiler)
 library(ggbeeswarm)
+library(DOSE)
+library(ReactomePA)
 #library(volcano3D)
 
-#Linux
-setwd("/media/mario/My Passport/IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4")
-#Windows
+######  SNU-C4 #####
 setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4/")
+##### LS513 #####
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LS513//")
+##### LIM2099 #####
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LIM-2099//")
 
 #Preparamos la matriz de analisis para DESeq2
 
+######  SNU-C4 #####
 Rmatrix <- as.matrix(read.csv("Rmatrix_SNUC4.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
-colnames(Rmatrix) <- c("RNA-25", "RNA-26", "RNA-27", "RNA-28") #LIM2099
-colnames(Rmatrix) <- c("RNA-29", "RNA-30", "RNA-31", "RNA-32") #SNUC4
-colnames(Rmatrix) <- c("RNA-33", "RNA-34", "RNA-35", "RNA-36") #LS513
-
+colnames(Rmatrix) <- c("RNA-29", "RNA-30", "RNA-31", "RNA-32") 
 metaData <- as.matrix(read.csv("metaData_SNUC4.csv", header = TRUE, sep = "\t"))
+
+##### LS513 #####
+Rmatrix <- as.matrix(read.csv("Rmatrix_LS513.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+colnames(Rmatrix) <- c("RNA-33", "RNA-34", "RNA-35", "RNA-36") 
+metaData <- as.matrix(read.csv("metaData_LS513.csv", header = TRUE, sep = "\t"))
+
+##### LIM2099 #####
+Rmatrix <- as.matrix(read.csv("Rmatrix_LIM2099.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+colnames(Rmatrix) <- c("RNA-25", "RNA-26", "RNA-27", "RNA-28") 
+metaData <- as.matrix(read.csv("metaData_LIM2099.csv", header = TRUE, sep = "\t"))
+
 
 dim(Rmatrix)
 
@@ -71,9 +84,15 @@ head(resSig[ order(resSig$log2FoldChange), ])
 head(resSig[ order(resSig$log2FoldChange, decreasing = FALSE), ])
 
 #Before multiple testing: genes with pvalue < 0.05
-resSIG <- subset(res, pvalue < 0.06)
+resSIG <- subset(res, pvalue < 0.05)
 #Vemos los resultados
 head(resSIG[order(resSIG$log2FoldChange, decreasing = TRUE), ])
+
+#Guardamos gene name con log2FC y pvalue/padj
+
+resSIG_log2FC <- as.data.frame(cbind(resSIG@rownames, resSIG$log2FoldChange, resSIG$pvalue, resSIG$padj))
+colnames(resSIG_log2FC) <- c("GeneName", "log2FC", "pvalue", "padj")
+write.table(resSIG_log2FC, file = "genename_log2FC.csv", sep = "\t", row.names = FALSE)
 
 #Ahora filtraremos por log2FoldChange para ver cuales son UP o DOWN regulated
   #ADJUSTED P-VALUE
@@ -85,7 +104,6 @@ log2FC_DOWN <- log2FC_DOWN[order(log2FC_DOWN$log2FoldChange, decreasing = FALSE)
 resSig_names <- resSig@rownames
 resSig_up_names <- log2FC_UP@rownames
 resSig_down_names <- log2FC_DOWN@rownames
-
 
   #P-VALUE
 log2FC_UP_pv <- subset(resSIG, resSIG$log2FoldChange > 0) 
@@ -106,13 +124,53 @@ write.table(resSIG_names, file = "diff_expressed_pval__genenames.csv", sep = "\t
 write.table(resSIG_DOWN_names, file = "down_regulated_pval_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
 write.table(resSIG_UP_names, file = "up_regulated_pval_names.csv", sep = ",", row.names = FALSE, col.names = FALSE)
 
+#### CYTOSCAPE ####
+cytoscape <- as.data.frame(resSIG@rownames)
+colnames(cytoscape) <- "Gene_Name"
+cytoscape$log2FC=resSIG$log2FoldChange
+cytoscape$pvalue=resSIG$pvalue
+cytoscape$GeneID=entrez_ids$ENSEMBL
+
+### REACTOMEPA ###
+no_LOC <- resSIG[!grepl("^LOC", resSIG@rownames),]
+
+eg = bitr(no_LOC@rownames, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+eg <- eg[, "ENTREZID"]
+x <- enrichPathway(gene=eg,pvalueCutoff=0.05, readable=T)
+head(x)
+
+
+x <- c("GPX3",  "GLRX",   "LBP",   "CRYAB", "DEFB1", "HCLS1",   "SOD2",   "HSPA2",
+       "ORM1",  "IGFBP1", "PTHLH", "GPC3",  "IGFBP3","TOB1",    "MITF",   "NDRG1",
+       "NR1H4", "FGFR3",  "PVR",   "IL6",   "PTPRM", "ERBB2",   "NID2",   "LAMB1",
+       "COMP",  "PLS3",   "MCAM",  "SPP1",  "LAMC1", "COL4A2",  "COL4A1", "MYOC",
+       "ANXA4", "TFPI2",  "CST6",  "SLPI",  "TIMP2", "CPM",     "GGT1",   "NNMT",
+       "MAL",   "EEF1A2", "HGD",   "TCN2",  "CDA",   "PCCA",    "CRYM",   "PDXK",
+       "STC1",  "WARS",  "HMOX1", "FXYD2", "RBP4",   "SLC6A12", "KDELR3", "ITM2B")
+eg = bitr(x, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db")
+head(eg)
+
+
+
+
+#Para transformar a ENSG...(keytype es lo que tú quieres cambiar)(column a lo que quieres cambiar) CYTOSCAPE:
+entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
+                                    keys = resSIG@rownames, #Cambiar key segun analisis
+                                    keytype = "SYMBOL",
+                                    columns = "ENTREZID")
+
+
+entrez_ids <- entrez_ids[!is.na(entrez_ids$ENSEMBL), ]
+columns(org.Hs.eg.db)
+keytypes(org.Hs.eg.db)
+
+write.table(cytoscape, file = "cytoscape.csv", sep = "\t", col.names = FALSE, row.names = FALSE)
+write.table(entrez_ids, file = "entrez_cytoscape.csv", sep = "\t", col.names = FALSE, row.names = FALSE)
+write.table(resSIG$pvalue, file = "pvalue_cytoscape.csv", sep = "\t", col.names = FALSE, row.names = FALSE)
+
 #### KEGG pathways ####
 entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
                                     keys = resSIG_names, #Cambiar key segun analisis
-                                    keytype = "SYMBOL",
-                                    columns = "ENTREZID")
-entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
-                                    keys = resSig_names, #Cambiar key segun analisis
                                     keytype = "SYMBOL",
                                     columns = "ENTREZID")
 
@@ -144,8 +202,8 @@ KEGG_pathways$GeneRatio=KEGG_analysis@result[["GeneRatio"]]
 
 write.table(KEGG_pathways, file = "KEGG_pathways_padj.csv", row.names = FALSE)
 write.table(KEGG_pathways, file = "KEGG_pathways_pval.csv", row.names = FALSE)
-#### GO:BP ####
 
+#### GO:BP ####
 GO_analysis <- function (genes, ontology){
   clusterProfiler::enrichGO(gene          = genes,
                             # universe      = universe,
@@ -168,7 +226,6 @@ GO_CC_df <- as.data.frame(GO_CC@result)
 write.table(GO_BP_df, file = "GO_BP_pval.csv", sep = "\t")
 write.table(GO_MF_df, file = "GO_MF_pval.csv", sep = "\t")
 write.table(GO_CC_df, file = "GO_CC_pval.csv", sep = "\t")
-
 
 #Creamos los plots en los que vemos las diferencias entre Resistente y parental
 
