@@ -115,6 +115,18 @@ resSIG_names <- resSIG@rownames
 resSIG_UP_names <-log2FC_UP_pv@rownames
 resSIG_DOWN_names <- log2FC_DOWN_pv@rownames
 
+
+#### UNIPROT ####
+UNIPROT_IDs <- AnnotationDbi::select(org.Hs.eg.db,
+                                     keys = resSIG_names, #Cambiar key segun analisis
+                                     keytype = "SYMBOL",
+                                     columns = "UNIPROT")
+UNIPROT_IDs <- UNIPROT_IDs[!is.na(UNIPROT_IDs$UNIPROT), ]
+UNIPROT_IDs <- UNIPROT_IDs[, "UNIPROT"]
+write.table(UNIPROT_IDs, file = "uniprots_id.csv", sep = ",", row.names = FALSE, col.names = FALSE)
+
+
+
 #Guardamos los resultados 
 write.table(resSig_names, file = "diff_expressed_padj_genenames.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
 write.table(resSig_down_names, file = "down_regulated_padj_names.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
