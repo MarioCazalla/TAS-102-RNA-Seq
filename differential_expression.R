@@ -1,7 +1,8 @@
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # BiocManager::install(version = "3.13")
-# 
+# install.packages("readxl")
+
 # BiocManager::install(c("ReactomePA", "data.table", "dplyr", "DESeq2", "ggplot2", "org.Hs.eg.db", "AnnotationDbi", "clusterProfiler", "ggbeeswarm", "volcano3D"))
 #install.packages("countToFPKM")
 library(data.table)
@@ -19,7 +20,7 @@ library(ReactomePA)
 ######  SNU-C4 #####
 setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4/")
 ##### LS513 #####
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LS513//")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LS513/")
 ##### LIM2099 #####
 setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LIM-2099//")
 
@@ -112,18 +113,22 @@ log2FC_DOWN_pv <- subset(resSIG, resSIG$log2FoldChange < 0)
 log2FC_DOWN_pv <- log2FC_DOWN_pv[order(log2FC_DOWN_pv$log2FoldChange, decreasing = FALSE), ]
 
 resSIG_names <- resSIG@rownames
+no_LOC <- resSIG[!grepl("^LOC", resSIG@rownames),]
+
 resSIG_UP_names <-log2FC_UP_pv@rownames
 resSIG_DOWN_names <- log2FC_DOWN_pv@rownames
 
 
 #### UNIPROT ####
 UNIPROT_IDs <- AnnotationDbi::select(org.Hs.eg.db,
-                                     keys = resSIG_names, #Cambiar key segun analisis
+                                     keys = no_LOC@rownames, #Cambiar key segun analisis
                                      keytype = "SYMBOL",
                                      columns = "UNIPROT")
 UNIPROT_IDs <- UNIPROT_IDs[!is.na(UNIPROT_IDs$UNIPROT), ]
-UNIPROT_IDs <- UNIPROT_IDs[, "UNIPROT"]
+#UNIPROT_IDs <- UNIPROT_IDs[, "UNIPROT"]
 write.table(UNIPROT_IDs, file = "uniprots_id.csv", sep = ",", row.names = FALSE, col.names = FALSE)
+
+
 
 
 
@@ -139,9 +144,21 @@ write.table(resSIG_UP_names, file = "up_regulated_pval_names.csv", sep = ",", ro
 #### CYTOSCAPE ####
 cytoscape <- as.data.frame(resSIG@rownames)
 colnames(cytoscape) <- "Gene_Name"
+entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
+                                    keys = resSIG@rownames, #Cambiar key segun analisis
+                                    keytype = "SYMBOL",
+                                    columns = "ENSEMBL")
+entrez_ids <- entrez_ids[-c(21,29),] #Porque se repite y hay que eliminarla
+cytoscape$GeneID=entrez_ids$ENSEMBL
 cytoscape$log2FC=resSIG$log2FoldChange
 cytoscape$pvalue=resSIG$pvalue
-cytoscape$GeneID=entrez_ids$ENSEMBL
+cytoscape$Gene_Name <- NULL
+cytoscape <- cytoscape[!is.na(cytoscape$GeneID), ] 
+
+#setwd("C:\\Users/usuari/Desktop")
+#write.table(entrez_ids, file = "entrez_id", sep = "\t", row.names = FALSE, col.names = FALSE)
+write.table(cytoscape, file = "cytoscape_ENSG.csv", sep = "\t", row.names = FALSE)
+
 
 ### REACTOMEPA ###
 no_LOC <- resSIG[!grepl("^LOC", resSIG@rownames),]
