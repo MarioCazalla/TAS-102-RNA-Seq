@@ -3,7 +3,7 @@
 # BiocManager::install(version = "3.13")
 # install.packages("readxl")
 
-# BiocManager::install(c("ReactomePA", "data.table", "dplyr", "DESeq2", "ggplot2", "org.Hs.eg.db", "AnnotationDbi", "clusterProfiler", "ggbeeswarm", "volcano3D"))
+# BiocManager::install(c("EnhancedVolcano", "ReactomePA", "data.table", "dplyr", "DESeq2", "ggplot2", "org.Hs.eg.db", "AnnotationDbi", "clusterProfiler", "ggbeeswarm", "volcano3D"))
 #install.packages("countToFPKM")
 library(data.table)
 library(DESeq2)
@@ -15,8 +15,10 @@ library(clusterProfiler)
 library(ggbeeswarm)
 library(DOSE)
 library(ReactomePA)
-#library(volcano3D)
+library(EnhancedVolcano)
 
+#library(volcano3D)
+data(example_data)
 ######  SNU-C4 #####
 setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4/")
 ##### LS513 #####
@@ -41,11 +43,17 @@ Rmatrix <- as.matrix(read.csv("Rmatrix_LIM2099.txt", header = TRUE, sep = "\t", 
 colnames(Rmatrix) <- c("RNA-25", "RNA-26", "RNA-27", "RNA-28") 
 metaData <- as.matrix(read.csv("metaData_LIM2099.csv", header = TRUE, sep = "\t"))
 
+### Resistant-Sensible MasterTable ###
+setwd("C:\\Users/usuari/Desktop")
+Rmatrix <- as.matrix(read.csv("Rmatrix.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+metaData <- as.matrix(read.csv("metaData.txt", header = TRUE, sep = "\t"))
+
 
 dim(Rmatrix)
 
 Rmatrix1 <- na.omit(Rmatrix)
 dim(Rmatrix1)
+
 dds <- DESeqDataSetFromMatrix(countData = Rmatrix1,
                               colData = metaData,
                               design = ~dex, tidy = FALSE)
@@ -97,10 +105,18 @@ write.table(resSIG_log2FC, file = "genename_log2FC.csv", sep = "\t", row.names =
 
 #Ahora filtraremos por log2FoldChange para ver cuales son UP o DOWN regulated
   #ADJUSTED P-VALUE
-log2FC_UP <- subset(resSig, resSig$log2FoldChange > 0) 
+log2FC_UP <- subset(resSig, resSig$log2FoldChange > 1.5) 
 log2FC_UP <- log2FC_UP[order(log2FC_UP$log2FoldChange, decreasing = TRUE), ]
-log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < 0) 
+log2FC_DOWN <- subset(resSig, resSig$log2FoldChange < -1.5) 
 log2FC_DOWN <- log2FC_DOWN[order(log2FC_DOWN$log2FoldChange, decreasing = FALSE), ]
+
+name_log2fc_down <- as.data.frame(log2FC_DOWN@rownames)
+colnames(name_log2fc_down) <- "GeneName"
+name_log2fc_down$log2fc=log2FC_DOWN$log2FoldChange
+
+name_log2fc_up <- as.data.frame(log2FC_UP@rownames)
+colnames(name_log2fc_up) <- "GeneName"
+name_log2fc_up$log2fc=log2FC_UP$log2FoldChange
 
 resSig_names <- resSig@rownames
 resSig_up_names <- log2FC_UP@rownames
@@ -119,11 +135,21 @@ resSIG_UP_names <-log2FC_UP_pv@rownames
 resSIG_DOWN_names <- log2FC_DOWN_pv@rownames
 
 
+ensembl_matrix <- fread("ensembl_gsea.txt", header = FALSE, sep = "\t" )
+ENSEMBL <- AnnotationDbi::select(org.Hs.eg.db,
+                                     keys = ensembl_matrix$V1, #Cambiar key segun analisis
+                                     keytype = "SYMBOL",
+                                     columns = "ENSEMBL")
+ENSEMBL <- ENSEMBL[!is.na(ENSEMBL$ENSEMBL), ]
+write.table(ENSEMBL, file = "ensembl_id.csv", sep = "\t", row.names = FALSE)
+
+
 #### UNIPROT ####
+
 UNIPROT_IDs <- AnnotationDbi::select(org.Hs.eg.db,
                                      keys = no_LOC@rownames, #Cambiar key segun analisis
                                      keytype = "SYMBOL",
-                                     columns = "UNIPROT")
+                                     columns = "ENSEMBL")
 UNIPROT_IDs <- UNIPROT_IDs[!is.na(UNIPROT_IDs$UNIPROT), ]
 #UNIPROT_IDs <- UNIPROT_IDs[, "UNIPROT"]
 write.table(UNIPROT_IDs, file = "uniprots_id.csv", sep = ",", row.names = FALSE, col.names = FALSE)
@@ -199,7 +225,7 @@ write.table(resSIG$pvalue, file = "pvalue_cytoscape.csv", sep = "\t", col.names 
 
 #### KEGG pathways ####
 entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
-                                    keys = resSIG_names, #Cambiar key segun analisis
+                                    keys = resSig_names, #Cambiar key segun analisis
                                     keytype = "SYMBOL",
                                     columns = "ENTREZID")
 
@@ -233,6 +259,7 @@ write.table(KEGG_pathways, file = "KEGG_pathways_padj.csv", row.names = FALSE)
 write.table(KEGG_pathways, file = "KEGG_pathways_pval.csv", row.names = FALSE)
 
 #### GO:BP ####
+
 GO_analysis <- function (genes, ontology){
   clusterProfiler::enrichGO(gene          = genes,
                             # universe      = universe,
@@ -244,15 +271,24 @@ GO_analysis <- function (genes, ontology){
                             qvalueCutoff  = 0.05)
 }
 
-GO_BP <- GO_analysis(resSIG_names, "BP")
-GO_MF <- GO_analysis(resSIG_names, "MF")
+GO_BP <- GO_analysis(resSig_names, "BP")
+GO_BP_up <- GO_analysis(resSig_up_names, "BP")
+GO_BP_down <- GO_analysis(resSig_down_names, "BP")
+
+GO_MF <- GO_analysis(resSig_names, "MF")
 GO_CC <- GO_analysis(resSIG_names, "CC")
 
 GO_BP_df <- as.data.frame(GO_BP@result)
+GO_BP_up_df <- as.data.frame(GO_BP_up@result)
+GO_BP_down_df <- as.data.frame(GO_BP_down@result)
+
 GO_MF_df <- as.data.frame(GO_MF@result)
 GO_CC_df <- as.data.frame(GO_CC@result)
 
-write.table(GO_BP_df, file = "GO_BP_pval.csv", sep = "\t")
+write.table(GO_BP_df, file = "GO_BP.csv", sep = "\t", row.names = FALSE)
+write.table(GO_BP_up_df, file = "GO_BP_up.csv", sep = "\t", row.names = FALSE)
+write.table(GO_BP_down_df, file = "GO_BP_down.csv", sep = "\t", row.names = FALSE)
+
 write.table(GO_MF_df, file = "GO_MF_pval.csv", sep = "\t")
 write.table(GO_CC_df, file = "GO_CC_pval.csv", sep = "\t")
 
@@ -261,25 +297,29 @@ write.table(GO_CC_df, file = "GO_CC_pval.csv", sep = "\t")
   #Aqui si queremos ver diferentes colores entre lineas celulares, en color ponemos
     #celltype, si es la misma linea celular, ponemos dex para diferenciar R de Parental
 
-geneCounts <- plotCounts(dds, gene = "MED22", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = dex)) + scale_y_log10() + geom_beeswarm(cex = 3)
-
-geneCounts <- plotCounts(dds, gene = "ZACN", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = dex)) + scale_y_log10() + geom_beeswarm(cex = 3)
-
-geneCounts <- plotCounts(dds, gene = "GRIP2", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
-
-geneCounts <- plotCounts(dds, gene = "HOXB-AS3", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
-
-geneCounts <- plotCounts(dds, gene = "GMPS", intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+geneCounts <- plotCounts(dds, gene = "DPYD", intgroup = c("dex", "celltype", "id"), returnData = TRUE)
+ggplot(geneCounts, aes(x = dex, y = count, color = id)) + scale_y_log10() + geom_beeswarm(cex = 3)
 
 
-geneCounts <- plotCounts(dds, gene = topGene, intgroup = c("dex", "celltype"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + scale_y_log10() + geom_beeswarm(cex = 3)
+##### PARA VER EXPRESION DE UN GEN EN CADA UNA DE LAS LINEAS CELULARES #####
+d <- plotCounts(dds, gene="UPP1", intgroup="dex", returnData=TRUE)
+d$name <- rownames(d)
+ggplot(d, aes(x=dex, y=count, color=dex)) + 
+  geom_point(position=position_jitter(w=0.1,h=0)) +
+  geom_text_repel(aes(label = name)) + 
+  theme_bw() +
+  ggtitle("MBD4") +
+  theme(plot.title=element_text(hjust=0.5))
 
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype, group = celltype)) + scale_y_log10() + geom_point(size=3) + geom_line()
-
-
+#### VOLCANO PLOT ####
+EnhancedVolcano(res,
+                lab = rownames(res),
+                x = 'log2FoldChange',
+                y = 'pvalue',
+                title = 'TAS102 R-S',
+                pCutoff = 0.05,
+                FCcutoff = 2.5,
+                pointSize = 3.0,
+                labSize = 6.0,
+                col=c('black', 'black', 'black', 'red3'),
+                colAlpha = 1)
