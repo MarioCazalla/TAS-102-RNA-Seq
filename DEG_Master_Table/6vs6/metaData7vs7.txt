@@ -1,0 +1,15 @@
+id	dex	celltype
+RNA-1	resistant	C106
+RNA-2	resistant	COLO201
+RNA-3	resistant	KM12
+RNA-4	resistant	LIM2537
+RNA-5	resistant	COLO678
+RNA-6	resistant	NCIH716
+RNA-7	sensible	VACO10
+RNA-8	sensible	LS513
+RNA-9	sensible	C99
+RNA-10	sensible	SNUC1
+RNA-11	sensible	LIM1215
+RNA-12	sensible	HUTU80
+RNA-13	sensible	LIM2551
+RNA-14	sensible	SW403
