@@ -21,11 +21,11 @@ library(EnhancedVolcano)
 #library(volcano3D)
 
 ##### SNU-C4 #####
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/SNU-C4/")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/SNU-C4/")
 ##### LS513 #####
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LS513/")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/LS513/")
 ##### LIM2099 #####
-setwd("E:\\IRBLLEIDA/RNA-Sequencing/alignment/LIM-2099//")
+setwd("E:\\IRBLLEIDA/RNA-Sequencing/LIM-2099/")
 
 ### Preparamos la matriz de analisis para DESeq2 ###
 
@@ -53,6 +53,11 @@ metaData <- as.matrix(read.csv("metaData6vs6.txt", header = TRUE, sep = "\t"))
 setwd("C:\\Users/usuari/Desktop/TAS-102-RNA-Seq/DEG_Master_Table/6vsALL/")
 Rmatrix <- as.matrix(read.csv("Rmatrix6vsALL.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
 metaData <- as.matrix(read.csv("metaData6vsALL.txt", header = TRUE, sep = "\t"))
+
+### CD vs PD ### Analysis of 6 cell lines of the right side of histogram vs ALL ###
+setwd("C:\\Users/usuari/Desktop/TAS-102-RNA-Seq/DEG_Master_Table/RECIST/")
+Rmatrix <- as.matrix(read.csv("RmatrixCDvsPD.txt", header = TRUE, sep = "\t", row.names = "Geneid"))
+metaData <- as.matrix(read.csv("metaDataCDvsPD.txt", header = TRUE, sep = "\t"))
 
 ###############
 
@@ -246,8 +251,15 @@ write.table(GO_MF_df, file = "GO_MF_pval.csv", sep = "\t")
 write.table(GO_CC_df, file = "GO_CC_pval.csv", sep = "\t")
 
 #We create the plots in which we can see the differences between Resistants and Sensibles ###
-geneCounts <- plotCounts(dds, gene = "RPS4Y1", intgroup = c("dex", "celltype", "id"), returnData = TRUE)
-ggplot(geneCounts, aes(x = dex, y = count, color = id)) + scale_y_log10() + geom_beeswarm(cex = 3)
+geneCounts <- plotCounts(dds, gene = "TM4SF4", intgroup = c("dex", "celltype", "id"), returnData=TRUE)
+
+# Plotting the X gene normalized counts, using the samplenames (rownames of d as labels)
+ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + 
+  geom_point(position=position_jitter(w = 0.1,h = 0)) +
+  geom_text_repel(aes(label = rownames(geneCounts))) + 
+  theme_bw() +
+  ggtitle("TM4SF4") +
+  theme(plot.title = element_text(hjust = 0.5))
 
 ### To see the expression of a gene in each cell lines ###
 d <- plotCounts(dds, gene="TM4SF18", intgroup="dex", returnData=TRUE)
@@ -264,7 +276,7 @@ EnhancedVolcano(res,
                 lab = rownames(res),
                 x = 'log2FoldChange',
                 y = 'pvalue', # change if we use padj
-                title = 'TAS102 R-S',
+                title = 'TAS102 6 vs ALL',
                 pCutoff = 0.05,
                 FCcutoff = 2.5,
                 pointSize = 3.0,
