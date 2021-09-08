@@ -126,6 +126,11 @@ log2FC_UP_pv <- subset(resSIG, resSIG$log2FoldChange > 0)
 log2FC_UP_pv <- log2FC_UP_pv[order(log2FC_UP_pv$log2FoldChange, decreasing = TRUE), ]
 log2FC_DOWN_pv <- subset(resSIG, resSIG$log2FoldChange < 0) 
 log2FC_DOWN_pv <- log2FC_DOWN_pv[order(log2FC_DOWN_pv$log2FoldChange, decreasing = FALSE), ]
+    #log2FC = 1 <- Doble de expresion
+    #log2FC = -1 <- Mitad de expresion
+      # log2FC = x  || FC = 2^x
+    #FC = 2 <- Doble de expresion
+    #FC = 0.5 <- Mitad de expresion
 
 #We save the downregulated gene names with their log2fc.
 name_log2fc_down_pv <- as.data.frame(log2FC_DOWN_pv@rownames)
@@ -159,10 +164,14 @@ write.table(resSIG_UP_names, file = "up_regulated_pval_names.csv", sep = ",", ro
 #### UNIPROT ID CONVERSION FROM x ####
 
 UNIPROT_IDs <- AnnotationDbi::select(org.Hs.eg.db,
-                                     keys = resSig@rownames, #Change Keys when you change the analysis
+                                     keys = gene, #Change Keys when you change the analysis
                                      keytype = "SYMBOL",
-                                     columns = "ENSEMBL") #Change Keys when you change the analysis
+                                     columns = "UNIPROT") #Change Keys when you change the analysis
+
+columns(org.Hs.eg.db)
+
 UNIPROT_IDs <- UNIPROT_IDs[!is.na(UNIPROT_IDs$UNIPROT), ]
+uniprot <- as.data.frame(UNIPROT_IDs[,"UNIPROT"])
 write.table(UNIPROT_IDs, file = "uniprots_id.csv", sep = ",", row.names = FALSE, col.names = FALSE)
 
 #### CYTOSCAPE dataframe Preparation ####
@@ -180,8 +189,22 @@ cytoscape <- cytoscape[!is.na(cytoscape$GeneID), ]
 write.table(cytoscape, file = "cytoscape_ENTREZID.csv", sep = "\t", row.names = FALSE)
 
 #### KEGG pathways ####
+up_down_names <- rbind(name_log2fc_down, name_log2fc_up)
+up_down_names <- up_down_names$GeneName
+
+gene = c("RPS4Y1",
+"CST7",
+"ALOX5AP",
+"DLX1",
+"EPHA4",
+"NAV2",
+"GNG2",
+"ARL4C",
+"GPR87")
+
+
 entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
-                                    keys = resSig_names, #Change Keys when you change the analysis
+                                    keys = gene, #Change Keys when you change the analysis
                                     keytype = "SYMBOL",
                                     columns = "ENTREZID")
 
@@ -219,14 +242,14 @@ GO_analysis <- function (genes, ontology){
   clusterProfiler::enrichGO(gene          = genes,
                             # universe      = universe,
                             OrgDb         = org.Hs.eg.db,
-                            keyType       = 'SYMBOL',
+                            keyType       = 'ENTREZID',
                             ont           = ontology, # "BP", "MF", "CC" o "ALL"
                             pAdjustMethod = "BH",
                             pvalueCutoff  = 0.05,
                             qvalueCutoff  = 0.05)
 }
 ### Biological Process ###
-GO_BP <- GO_analysis(resSIG_names, "BP")
+GO_BP <- GO_analysis(entrez_ids, "BP")
 GO_BP_up <- GO_analysis(resSig_up_names, "BP")
 GO_BP_down <- GO_analysis(resSig_down_names, "BP")
 
@@ -251,24 +274,24 @@ write.table(GO_MF_df, file = "GO_MF_pval.csv", sep = "\t")
 write.table(GO_CC_df, file = "GO_CC_pval.csv", sep = "\t")
 
 #We create the plots in which we can see the differences between Resistants and Sensibles ###
-geneCounts <- plotCounts(dds, gene = "TM4SF4", intgroup = c("dex", "celltype", "id"), returnData=TRUE)
+geneCounts <- plotCounts(dds, gene = "FAM3B", intgroup = c("dex", "celltype", "id"), returnData=TRUE)
 
 # Plotting the X gene normalized counts, using the samplenames (rownames of d as labels)
-ggplot(geneCounts, aes(x = dex, y = count, color = celltype)) + 
+ggplot(geneCounts, aes(x = celltype, y = count, color = dex)) + 
   geom_point(position=position_jitter(w = 0.1,h = 0)) +
   geom_text_repel(aes(label = rownames(geneCounts))) + 
   theme_bw() +
-  ggtitle("TM4SF4") +
+  ggtitle("FAM3B") +
   theme(plot.title = element_text(hjust = 0.5))
 
 ### To see the expression of a gene in each cell lines ###
-d <- plotCounts(dds, gene="TM4SF18", intgroup="dex", returnData=TRUE)
+d <- plotCounts(dds, gene="RPS4Y1", intgroup="dex", returnData=TRUE)
 d$name <- rownames(d)
 ggplot(d, aes(x=dex, y=count, color=dex)) + 
   geom_point(position=position_jitter(w=0.1,h=0)) +
   geom_text_repel(aes(label = name)) + 
   theme_bw() +
-  ggtitle("Gene KRT7") +
+  ggtitle("Gene RPS4Y1") +
   theme(plot.title=element_text(hjust=0.5))
 
 ### VOLCANO PLOT to see easier the log2fc and the p value ###
@@ -278,7 +301,7 @@ EnhancedVolcano(res,
                 y = 'pvalue', # change if we use padj
                 title = 'TAS102 6 vs ALL',
                 pCutoff = 0.05,
-                FCcutoff = 2.5,
+                FCcutoff = 1.5,
                 pointSize = 3.0,
                 labSize = 6.0,
                 col=c('black', 'black', 'black', 'red3'),
