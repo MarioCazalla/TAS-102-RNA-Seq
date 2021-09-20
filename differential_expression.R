@@ -114,6 +114,7 @@ write.table(name_log2fc_up, file = "name_log2FC_up.csv", sep = "\t", row.names =
 
 ### We keep gene names
 resSig_names <- resSig@rownames
+write.table(resSig_names, "names_for_string.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
 resSig_up_names <- log2FC_UP@rownames
 resSig_down_names <- log2FC_DOWN@rownames
 
@@ -204,7 +205,7 @@ gene = c("RPS4Y1",
 
 
 entrez_ids <- AnnotationDbi::select(org.Hs.eg.db,
-                                    keys = gene, #Change Keys when you change the analysis
+                                    keys = name_log2fc_up$GeneName, #Change Keys when you change the analysis
                                     keytype = "SYMBOL",
                                     columns = "ENTREZID")
 
